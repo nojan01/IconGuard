@@ -27,20 +27,20 @@ source .venv/bin/activate
 pip install rumps pyobjc-framework-Cocoa
 
 # GUI starten
-python3 desktop_icon_manager_app.py
+python3 iconguard_app.py
 
 # CLI nutzen
-python3 desktop_icon_manager.py save "Mein Profil"
-python3 desktop_icon_manager.py restore "Mein Profil"
-python3 desktop_icon_manager.py list
+python3 iconguard_cli.py save "Mein Profil"
+python3 iconguard_cli.py restore "Mein Profil"
+python3 iconguard_cli.py list
 ```
 
 ## Dateien
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `desktop_icon_manager_app.py` | Haupt-App (Menüleiste) |
-| `desktop_icon_manager.py` | CLI-Version |
+| `iconguard_app.py` | Haupt-App (Menüleiste) |
+| `iconguard_cli.py` | CLI-Version |
 | `setup_app.py` | py2app Build-Konfiguration |
 | `build_dmg.sh` | Build-Script für .app + DMG |
 | `create_icon.py` | Icon-Generator (icns + png) |

@@ -8,11 +8,11 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parent
 VENV_DIR = APP_DIR / ".venv"
-APP_SCRIPT = APP_DIR / "desktop_icon_manager_app.py"
+APP_SCRIPT = APP_DIR / "iconguard_app.py"
 
 
 def setup():
-    print("🔧 Desktop Icon Manager – Setup\n")
+    print("🔧 IconGuard – Setup\n")
 
     # 1. venv erstellen
     if not VENV_DIR.exists():
