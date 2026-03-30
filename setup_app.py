@@ -10,7 +10,7 @@ from setuptools import setup
 import os
 
 APP_NAME = "IconGuard"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_SCRIPT = "iconguard_app.py"
 ICON_FILE = "icon.icns"
 

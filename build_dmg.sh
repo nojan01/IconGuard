@@ -3,7 +3,7 @@ set -e
 
 APP_NAME="IconGuard"
 DMG_NAME="IconGuard"
-VERSION="1.0.0"
+VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -38,9 +38,26 @@ echo "✅ App gebaut: $APP_PATH"
 # ─── 3. Boot-Script patchen (venv-Pfad entfernen) ────────────────
 BOOT_PY="$APP_PATH/Contents/Resources/__boot__.py"
 if [ -f "$BOOT_PY" ]; then
-    # Ersetze den hartcodierten venv-Pfad durch einen leeren site_packages-Aufruf
-    sed -i '' "s|_site_packages('.*', '.*', .)|# _site_packages removed – standalone app|" "$BOOT_PY"
-    echo "✅ Boot-Script gepatcht (kein venv-Verweis mehr)"
+    # Ersetze den hartcodierten venv-Pfad durch den Bundle-lib-Pfad
+    python3 -c "
+import re
+path = '$BOOT_PY'
+with open(path, 'r') as f:
+    content = f.read()
+# Ersetze _site_packages('/abs/venv/path', '/abs/python/path', N)
+# durch Code der den Bundle-lib-Pfad zum sys.path hinzufügt
+replacement = '''import os, sys, site
+_lib = os.path.join(os.environ['RESOURCEPATH'], 'lib', 'python%d.%d' % sys.version_info[:2])
+site.addsitedir(_lib)'''
+content = re.sub(
+    r\"_site_packages\('[^']*',\s*'[^']*',\s*\d+\)\",
+    replacement,
+    content
+)
+with open(path, 'w') as f:
+    f.write(content)
+"
+    echo "✅ Boot-Script gepatcht (Bundle-lib-Pfad statt venv)"
 fi
 
 # ─── 4. Icon kopieren (Menüleiste) ───────────────────────────────
