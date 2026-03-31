@@ -13,6 +13,7 @@ import json
 import stat
 import threading
 import os
+import time
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -33,7 +34,16 @@ from AppKit import (
 # Konstanten die in manchen PyObjC-Versionen fehlen
 NSControlStateValueOn = 1
 NSControlStateValueOff = 0
-from Foundation import NSObject, NSMakeRect
+from Foundation import NSObject, NSMakeRect, NSBundle as FoundationNSBundle
+
+# CGSessionCopyCurrentDictionary laden (ohne pyobjc-framework-Quartz)
+_cg_functions = {}
+objc.loadBundleFunctions(
+    FoundationNSBundle.bundleWithPath_('/System/Library/Frameworks/ApplicationServices.framework'),
+    _cg_functions,
+    [('CGSessionCopyCurrentDictionary', b'@',)]
+)
+_CGSessionCopyCurrentDictionary = _cg_functions['CGSessionCopyCurrentDictionary']
 
 # Dock-Icon unterdrücken
 NSApplication.sharedApplication().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
@@ -367,6 +377,9 @@ class SleepWakeObserver(NSObject):
             self._app._restore_after_wake()
 
 
+
+
+
 class VisibilityWindowDelegate(NSObject):
     """Delegate für das Sichtbarkeits-Fenster."""
 
@@ -434,12 +447,17 @@ class DesktopIconManagerApp(rumps.App):
         self.config = load_config()
         self.auto_timer = None
         self._wake_observer = None
+        self._visibility_window = None
+        self._visibility_delegate = None
+        self._last_check_time = time.time()
+        self._screen_was_locked = False
         self._build_menu()
         if self.config["auto_restore_enabled"]:
             self._start_auto_restore()
         if self.config.get("restore_on_login", True):
             self._restore_on_login()
         self._register_wake_observer()
+        self._start_wake_detector()
 
     # ── Menü aufbauen ─────────────────────────────────────────────
 
@@ -909,6 +927,37 @@ class DesktopIconManagerApp(rumps.App):
             NSWorkspaceDidWakeNotification,
             None
         )
+
+    def _start_wake_detector(self):
+        """Startet einen Timer der Wake-from-Sleep erkennt über Zeitsprünge."""
+        self._wake_timer = rumps.Timer(self._check_wake, 10)
+        self._wake_timer.start()
+
+    def _check_wake(self, _):
+        """Prüft auf Wake-from-Sleep (Zeitsprung) und Screen-Unlock (CGSession)."""
+        now = time.time()
+        elapsed = now - self._last_check_time
+        self._last_check_time = now
+
+        # 1. Zeitsprung-Erkennung: Timer ist 10s, >30s = Sleep/Wake
+        if elapsed > 30:
+            if self.config.get("restore_on_wake", True):
+                self._restore_after_wake()
+            return
+
+        # 2. Screen-Lock/Unlock-Erkennung via CGSession-Polling
+        try:
+            session = _CGSessionCopyCurrentDictionary()
+            is_locked = bool(session.get('CGSSessionScreenIsLocked', False)) if session else False
+        except Exception:
+            is_locked = False
+
+        if self._screen_was_locked and not is_locked:
+            # Bildschirm wurde gerade entsperrt
+            if self.config.get("restore_on_wake", True):
+                self._restore_after_wake()
+
+        self._screen_was_locked = is_locked
 
     def _restore_after_wake(self):
         """Stellt Icons nach dem Aufwachen aus dem Ruhemodus wieder her."""
