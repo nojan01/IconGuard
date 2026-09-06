@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR"
 
 APP_NAME="Desktop Profile Manager"
 BUNDLE_ID="com.desktopprofilemanager.swift"
-VERSION="${VERSION:-1.5.8}"
+VERSION="${VERSION:-1.5.9}"
 ENTITLEMENTS_PATH="$SCRIPT_DIR/Resources/DesktopProfileManager.entitlements"
 
 # Optional überschreibbar, z. B. für ein anderes Team oder CI. Ohne explizite

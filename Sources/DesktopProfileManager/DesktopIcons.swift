@@ -74,6 +74,11 @@ enum DesktopIcons {
             shouldCancel: shouldCancel) else { return (0, positions.count) }
         let parts = result.components(separatedBy: "|")
         if parts.count == 2, let s = Int(parts[0]), let f = Int(parts[1]) {
+            // Finder übernimmt die Koordinaten zwar per AppleScript, zeichnet den
+            // Desktop auf aktuellen macOS-Versionen aber nicht immer sofort neu.
+            // Ein gezieltes Update verhindert, dass die alten Positionen sichtbar
+            // bleiben oder später wieder darübergelegt werden.
+            if s > 0 { refreshFinderDesktop() }
             return (s, f)
         }
         return (0, positions.count)
