@@ -3,6 +3,11 @@ import AppKit
 
 /// Desktop-Icon-Positionen und Sichtbarkeit von Desktop-Dateien.
 enum DesktopIcons {
+    /// Finder registriert Laufwerksicons nach einem Profilwechsel gelegentlich
+    /// erst verzögert. Zwei kurze Nachprüfungen ersetzen die bisher nötigen
+    /// manuellen Wiederholungen des Profilwechsels.
+    static let positionRestoreRetryCount = 2
+    static let positionRestoreRetryDelay: TimeInterval = 0.6
 
     /// Liest alle Desktop-Icon-Positionen als [name: (x, y)].
     static func getPositions() -> [String: (x: Int, y: Int)] {
@@ -37,6 +42,35 @@ enum DesktopIcons {
     static func setPositions(_ positions: [String: (x: Int, y: Int)],
                              shouldCancel: () -> Bool = { false }) -> (success: Int, failed: Int) {
         if positions.isEmpty { return (0, 0) }
+        let firstResult = applyPositionsOnce(positions, shouldCancel: shouldCancel)
+        guard firstResult.success > 0, !shouldCancel() else { return firstResult }
+
+        refreshFinderDesktop()
+        guard var pending = mismatchedPositions(positions), !pending.isEmpty else {
+            return firstResult
+        }
+
+        for _ in 0..<positionRestoreRetryCount {
+            Thread.sleep(forTimeInterval: positionRestoreRetryDelay)
+            guard !shouldCancel() else { break }
+            _ = applyPositionsOnce(pending, shouldCancel: shouldCancel)
+            refreshFinderDesktop()
+            guard let remaining = mismatchedPositions(positions) else { break }
+            pending = remaining
+            if pending.isEmpty { break }
+        }
+
+        // Der abschließende Abgleich zählt nur tatsächlich an der Zielposition
+        // befindliche Icons als Erfolg. Nicht mehr vorhandene Dateien bleiben
+        // korrekt als fehlgeschlagen sichtbar.
+        if let remaining = mismatchedPositions(positions) {
+            return (positions.count - remaining.count, remaining.count)
+        }
+        return firstResult
+    }
+
+    private static func applyPositionsOnce(_ positions: [String: (x: Int, y: Int)],
+                                           shouldCancel: () -> Bool) -> (success: Int, failed: Int) {
         var entries: [String] = []
         for (name, pos) in positions {
             entries.append("{\"\(Shell.esc(name))\", \(pos.x), \(pos.y)}")
@@ -74,14 +108,22 @@ enum DesktopIcons {
             shouldCancel: shouldCancel) else { return (0, positions.count) }
         let parts = result.components(separatedBy: "|")
         if parts.count == 2, let s = Int(parts[0]), let f = Int(parts[1]) {
-            // Finder übernimmt die Koordinaten zwar per AppleScript, zeichnet den
-            // Desktop auf aktuellen macOS-Versionen aber nicht immer sofort neu.
-            // Ein gezieltes Update verhindert, dass die alten Positionen sichtbar
-            // bleiben oder später wieder darübergelegt werden.
-            if s > 0 { refreshFinderDesktop() }
             return (s, f)
         }
         return (0, positions.count)
+    }
+
+    /// Gibt nur die Icons zurück, die Finder noch nicht an der gespeicherten
+    /// Position meldet. `nil` steht für einen nicht lesbaren Finder-Zustand;
+    /// dann bleibt das Ergebnis des ursprünglichen Setzens erhalten.
+    private static func mismatchedPositions(_ desired: [String: (x: Int, y: Int)])
+        -> [String: (x: Int, y: Int)]? {
+        let current = getPositions()
+        guard !current.isEmpty else { return nil }
+        return desired.filter { name, position in
+            guard let actual = current[name] else { return true }
+            return actual.x != position.x || actual.y != position.y
+        }
     }
 
     static func positionRestoreTimeout(itemCount: Int) -> TimeInterval {

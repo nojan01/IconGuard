@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR"
 
 APP_NAME="Desktop Profile Manager"
 DMG_NAME="DesktopProfileManager-Swift"
-VERSION="${VERSION:-1.5.9}"
+VERSION="${VERSION:-1.5.10}"
 NOTARIZE="${NOTARIZE:-1}"
 
 if [ -z "${SIGNING_IDENTITY:-}" ]; then

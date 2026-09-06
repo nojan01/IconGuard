@@ -53,6 +53,11 @@ final class DesktopProfileManagerTests: XCTestCase {
         XCTAssertEqual(DesktopIcons.positionRestoreTimeout(itemCount: 1000), 30)
     }
 
+    func testDesktopIconRestoreRetriesFinderTwice() {
+        XCTAssertEqual(DesktopIcons.positionRestoreRetryCount, 2)
+        XCTAssertEqual(DesktopIcons.positionRestoreRetryDelay, 0.6)
+    }
+
     func testFinderVisibilityArgumentsDisableShowingHiddenFiles() {
         XCTAssertEqual(DesktopIcons.finderVisibilityArguments(showHiddenFiles: false), [
             "write", "com.apple.finder", "AppleShowAllFiles", "-bool", "false",
